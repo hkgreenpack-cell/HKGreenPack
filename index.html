@@ -9,11 +9,16 @@
   <style>
     input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
+    @media print {
+      body * { visibility: hidden; }
+      #pdf-content, #pdf-content * { visibility: visible; }
+      #pdf-content { position: absolute; left: 0; top: 0; width: 100%; }
+    }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen py-8 px-4 sm:px-6">
-  
-  <!-- 主表單區域 -->
+
+  <!-- 主輸入表單 -->
   <div class="max-w-3xl mx-auto space-y-6 bg-white p-6 sm:p-8 rounded-2xl shadow-sm border border-slate-200">
     <header class="text-center mb-6">
       <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">PPWR 歐盟包裝合規檢測系統</h1>
@@ -53,150 +58,353 @@
       <div class="grid grid-cols-3 gap-3">
         <input type="number" id="boxL" value="3.5" placeholder="長 L" oninput="calculate()" class="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 focus:outline-none">
         <input type="number" id="boxW" value="2.5" placeholder="闊 W" oninput="calculate()" class="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        <input type="number" id="boxH" value="7.5" placeholder="高 H" oninput="calculate()" class="w-full p-2.5 bg-white border border-slate-300 rounded-這個 Pop-up 彈窗預覽畫面的前端 HTML/Tailwind CSS 實現程式碼如下。包含 **控制列（標題與按鈕）**、**列印/下載 PDF 觸發邏輯**，以及針對列印時自動隱藏彈窗邊框與按鈕的 **@media print** 設定。
-
-```html
-<!-- Modal 遮罩與容器 -->
-<div id="report-modal" class="fixed inset-0 z-50 flex flex-col items-center justify-start bg-slate-900/40 p-4 overflow-y-auto">
-  
-  <!-- Pop-up Window 頂部工具列與文件主體 -->
-  <div class="w-full max-w-4xl bg-white rounded-xl shadow-2xl overflow-hidden my-6 border border-slate-200">
-    
-    <!-- Modal 標題與按鈕區域 (列印時隱藏) -->
-    <div class="print:hidden flex flex-wrap items-center justify-between gap-3 bg-slate-50 px-6 py-4 border-b border-slate-200">
-      <div class="flex items-center gap-2 font-bold text-slate-800 text-lg">
-        <span>📄</span> 報表預覽 (Report Preview)
-      </div>
-      <div class="flex items-center gap-3">
-        <button onclick="window.print()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors text-sm">
-          <span>📥</span> 下載 PDF / 列印 (Save as PDF)
-        </button>
-        <button onclick="document.getElementById('report-modal').classList.add('hidden')" class="bg-slate-400 hover:bg-slate-500 text-white font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors text-sm">
-          關閉 (Close)
-        </button>
+        <input type="number" id="boxH" value="7.5" placeholder="高 H" oninput="calculate()" class="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 focus:outline-none">
       </div>
     </div>
 
-    <!-- PDF 文件內容區塊 -->
-    <div id="pdf-content" class="p-8 sm:p-12 text-slate-800 bg-white">
+    <!-- 2. 裝載商品清單 -->
+    <div class="p-5 border border-slate-200 rounded-xl bg-slate-50/50 space-y-3">
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">2. 裝載商品清單 (支援多 SKU)</div>
+      <div id="skuContainer" class="space-y-3"></div>
+      <button onclick="addSkuRow()" class="w-full py-2.5 border-2 border-dashed border-blue-300 text-blue-600 font-medium text-sm rounded-xl hover:bg-blue-50/50 transition flex items-center justify-center gap-1">
+        <span>+ 新增商品 SKU</span>
+      </button>
+    </div>
+
+    <!-- 3. 緩衝材扣除 -->
+    <div class="p-5 border border-slate-200 rounded-xl bg-slate-50/50 space-y-3">
+      <div id="sec3Title" class="text-xs font-semibold text-slate-500 uppercase tracking-wider">3. 緩衝材 / 內咭扣除 (Art. 24：緩衝物全數計入空隙)</div>
+      <select id="bufferType" onchange="calculate()" class="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        <option value="none">無緩衝材 / 不扣除</option>
+        <option value="bubble">氣泡紙 / 塑膠氣墊 (全數計入空隙)</option>
+        <option value="paper">紙質蜂巢 / 碎紙 (全數計入空隙)</option>
+      </select>
+    </div>
+
+    <!-- 即時結果面板 -->
+    <div id="resultBox" class="p-6 rounded-xl bg-slate-100 text-slate-500 text-center font-medium">
+      請輸入外盒與至少一件產品的尺寸數據
+    </div>
+
+    <!-- 彈窗觸發按鈕 -->
+    <button onclick="openModal()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2">
+      <span>📄</span> 預覽並產生 PDF 檢測報告 (Pop-up Preview)
+    </button>
+  </div>
+
+  <!-- Pop-up Window 彈窗區域 (獨立於主頁面外) -->
+  <div id="reportModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
+    <div class="w-full max-w-3xl bg-white rounded-2xl shadow-2xl my-8 overflow-hidden border border-slate-200">
       
-      <!-- 文件 Header -->
-      <div class="flex justify-between items-start pb-4 mb-6 border-b-2 border-blue-600">
+      <!-- Modal 標題列 -->
+      <div class="flex items-center justify-between bg-slate-50 px-6 py-4 border-b border-slate-200">
+        <div class="flex items-center gap-2 font-bold text-slate-800 text-base">
+          <span>📄</span> 報表預覽 (Report Preview)
+        </div>
+        <div class="flex items-center gap-3">
+          <button onclick="downloadPDF()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg text-xs sm:text-sm shadow-sm transition">
+            📥 下載 PDF / 列印 (Save as PDF)
+          </button>
+          <button onclick="closeModal()" class="bg-slate-400 hover:bg-slate-500 text-white font-semibold px-4 py-2 rounded-lg text-xs sm:text-sm shadow-sm transition">
+            關閉 (Close)
+          </button>
+        </div>
+      </div>
+
+      <!-- PDF 聲明書內容 -->
+      <div id="pdf-content" class="p-8 bg-white text-slate-800 space-y-6">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-start pb-4 border-b-2 border-blue-600">
+          <div>
+            <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900">EU PPWR Packaging Compliance Declaration</h1>
+            <p id="modalSubTitle" class="text-xs font-medium text-slate-500 mt-1">PPWR Assessment Report - Article 24 (Transport Packaging)</p>
+          </div>
+          <div id="modalLogoContainer" class="bg-emerald-600 text-white p-2 rounded-lg w-12 h-12 flex items-center justify-center text-center text-xs font-bold leading-tight">
+            Lushwood
+          </div>
+        </div>
+
+        <!-- 基本資料 -->
+        <div class="grid grid-cols-2 gap-y-2 text-xs sm:text-sm">
+          <div><span class="font-bold text-slate-600">Company:</span> <span id="mCompany">Lushwood Packaging Consultant</span></div>
+          <div><span class="font-bold text-slate-600">Date:</span> <span id="mDate">2026-08-25</span></div>
+          <div><span class="font-bold text-slate-600">SKU / Ref:</span> <span id="mSku">SG333</span></div>
+          <div><span class="font-bold text-slate-600">Category:</span> <span id="mCategory">Secondary / Transport Packaging</span></div>
+        </div>
+
+        <!-- 表格 1: 規格拆解 -->
         <div>
-          <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">EU PPWR Packaging Compliance Declaration</h1>
-          <p class="text-xs font-semibold text-slate-500 mt-1">PPWR Assessment Report - Article 24 (Transport Packaging)</p>
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-1.5 h-4 bg-blue-600"></div>
+            <h2 class="font-bold text-slate-900 text-xs sm:text-sm">1. Packaging & Item Specifications Breakdown</h2>
+          </div>
+          <table class="w-full text-left text-xs border-collapse border border-slate-200">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 font-semibold text-slate-700">
+                <th class="p-2 border-r border-slate-200">Item / Component</th>
+                <th class="p-2 border-r border-slate-200 text-center">Dimensions (L×W×H cm)</th>
+                <th class="p-2 border-r border-slate-200 text-center">Qty</th>
+                <th class="p-2 text-right">Total Volume (cm³)</th>
+              </tr>
+            </thead>
+            <tbody id="mSpecTable" class="divide-y divide-slate-200"></tbody>
+          </table>
         </div>
-        <!-- Logo -->
-        <div class="bg-emerald-600 text-white p-2 rounded-lg flex items-center justify-center w-12 h-12">
-          <span class="text-xs font-bold leading-none text-center">Lushwood</span>
+
+        <!-- 表格 2: 合規指標評估 -->
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-1.5 h-4 bg-blue-600"></div>
+            <h2 class="font-bold text-slate-900 text-xs sm:text-sm">2. Compliance Metrics Assessment</h2>
+          </div>
+          <table class="w-full text-left text-xs border-collapse border border-slate-200">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 font-semibold text-slate-700">
+                <th class="p-2 border-r border-slate-200">Parameter / Metric</th>
+                <th class="p-2 text-right">Value / Threshold Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <tr>
+                <td class="p-2 border-r border-slate-200">Outer Box Total Volume</td>
+                <td id="mBoxVol" class="p-2 text-right">65.625 cm³</td>
+              </tr>
+              <tr>
+                <td class="p-2 border-r border-slate-200">Product Volume Total</td>
+                <td id="mProdVol" class="p-2 text-right">52.5 cm³</td>
+              </tr>
+              <tr>
+                <td class="p-2 border-r border-slate-200">Cushioning Material Volume (Counts as Void)</td>
+                <td class="p-2 text-right">0.0 cm³</td>
+              </tr>
+              <tr>
+                <td class="p-2 border-r border-slate-200 font-bold" id="mVoidLabel">Void Space Ratio (Max Limit ≤ 50% - Art. 24)</td>
+                <td id="mVoidRatio" class="p-2 text-right font-bold">20.0%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 結果 Banner -->
+        <div id="mStatusBanner" class="bg-emerald-100 text-emerald-800 text-center font-bold py-3 rounded-lg text-xs sm:text-sm border border-emerald-200">
+          PASS: Complies with PPWR Article 24 (Void Space ≤ 50%)
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-[10px] text-slate-400 border-t border-slate-100 pt-3">
+          This is an automated technical compliance report generated for EU PPWR Article 10 / Article 24 technical documentation file.
         </div>
       </div>
-
-      <!-- 基本資訊區 -->
-      <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm mb-6">
-        <div><span class="font-bold text-slate-700">Company:</span> Lushwood Packaging Consultant</div>
-        <div><span class="font-bold text-slate-700">Date:</span> 2026-08-25</div>
-        <div><span class="font-bold text-slate-700">SKU / Ref:</span> SG333</div>
-        <div><span class="font-bold text-slate-700">Category:</span> Secondary / Transport Packaging</div>
-      </div>
-
-      <!-- 1. Packaging & Item Specifications Breakdown -->
-      <div class="mb-6">
-        <div class="flex items-center gap-2 mb-2">
-          <div class="w-1.5 h-4 bg-blue-600"></div>
-          <h2 class="font-bold text-slate-900 text-sm">1. Packaging & Item Specifications Breakdown</h2>
-        </div>
-        <table class="w-full text-left text-xs border-collapse border border-slate-200">
-          <thead>
-            <tr class="bg-slate-50 border-b border-slate-200 font-semibold text-slate-700">
-              <th class="p-2 border-r border-slate-200">Item / Component</th>
-              <th class="p-2 border-r border-slate-200 text-center">Dimensions (L×W×H cm)</th>
-              <th class="p-2 border-r border-slate-200 text-center">Qty</th>
-              <th class="p-2 text-right">Total Volume (cm³)</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-200">
-            <tr>
-              <td class="p-2 border-r border-slate-200 font-bold">Outer Transport Box</td>
-              <td class="p-2 border-r border-slate-200 text-center">3.5 × 2.5 × 7.5</td>
-              <td class="p-2 border-r border-slate-200 text-center">1</td>
-              <td class="p-2 text-right">65.625</td>
-            </tr>
-            <tr>
-              <td class="p-2 border-r border-slate-200">面膜</td>
-              <td class="p-2 border-r border-slate-200 text-center">3 × 0.5 × 7</td>
-              <td class="p-2 border-r border-slate-200 text-center">5</td>
-              <td class="p-2 text-right">52.5</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- 2. Compliance Metrics Assessment -->
-      <div class="mb-6">
-        <div class="flex items-center gap-2 mb-2">
-          <div class="w-1.5 h-4 bg-blue-600"></div>
-          <h2 class="font-bold text-slate-900 text-sm">2. Compliance Metrics Assessment</h2>
-        </div>
-        <table class="w-full text-left text-xs border-collapse border border-slate-200">
-          <thead>
-            <tr class="bg-slate-50 border-b border-slate-200 font-semibold text-slate-700">
-              <th class="p-2 border-r border-slate-200">Parameter / Metric</th>
-              <th class="p-2 text-right">Value / Threshold Status</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-200">
-            <tr>
-              <td class="p-2 border-r border-slate-200">Outer Box Total Volume</td>
-              <td class="p-2 text-right">65.625 cm³</td>
-            </tr>
-            <tr>
-              <td class="p-2 border-r border-slate-200">Product Volume Total</td>
-              <td class="p-2 text-right">52.5 cm³</td>
-            </tr>
-            <tr>
-              <td class="p-2 border-r border-slate-200">Cushioning Material Volume (Counts as Void)</td>
-              <td class="p-2 text-right">0.0 cm³</td>
-            </tr>
-            <tr>
-              <td class="p-2 border-r border-slate-200 font-bold">Void Space Ratio (Max Limit ≤ 50% - Art. 24)</td>
-              <td class="p-2 text-right font-bold">20.0%</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- PASS 結果 Banner -->
-      <div class="bg-emerald-100 text-emerald-800 text-center font-bold py-3 rounded-lg text-sm mb-6 border border-emerald-200">
-        PASS: Complies with PPWR Article 24 (Void Space ≤ 50%)
-      </div>
-
-      <!-- 頁尾聲明 -->
-      <div class="text-center text-[10px] text-slate-400 border-t border-slate-100 pt-4">
-        This is an automated technical compliance report generated for EU PPWR Article 10 / Article 24 technical documentation file.
-      </div>
-
     </div>
   </div>
-</div>
 
-<!-- CSS 補充：列印時只保留文件內容，隱藏 Modal 背景與彈窗外框 -->
-<style>
-@media print {
-  body {
-    background: white !important;
-  }
-  #report-modal {
-    position: absolute !important;
-    inset: 0 !important;
-    background: transparent !important;
-    padding: 0 !important;
-  }
-  #report-modal > div {
-    border: none !important;
-    box-shadow: none !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-  }
-}
-</style>
+  <script>
+    let currentMode = 'secondary';
+    let skuCount = 0;
+    let logoDataUrl = '';
+
+    function switchTab(mode) {
+      currentMode = mode;
+      const tabSec = document.getElementById('tabSecondary');
+      const tabPri = document.getElementById('tabPrimary');
+      const sec3Title = document.getElementById('sec3Title');
+
+      if (mode === 'secondary') {
+        tabSec.className = "py-3 px-4 rounded-lg font-medium text-center transition-all bg-blue-600 text-white shadow-sm";
+        tabPri.className = "py-3 px-4 rounded-lg font-medium text-center transition-all text-slate-600 hover:bg-slate-200/60";
+        sec3Title.innerText = "3. 緩衝材 / 內咭扣除 (Art. 24：緩衝物全數計入空隙)";
+      } else {
+        tabPri.className = "py-3 px-4 rounded-lg font-medium text-center transition-all bg-blue-600 text-white shadow-sm";
+        tabSec.className = "py-3 px-4 rounded-lg font-medium text-center transition-all text-slate-600 hover:bg-slate-200/60";
+        sec3Title.innerText = "3. 包裝極小化評估 (Art. 10：必要防護空間說明)";
+      }
+      calculate();
+    }
+
+    function addSkuRow(name = '面膜', l = '3', w = '0.5', h = '7', qty = 5) {
+      skuCount++;
+      const id = `sku_row_${skuCount}`;
+      const html = `
+        <div id="${id}" class="grid grid-cols-12 gap-2 items-center">
+          <input type="text" placeholder="SKU 名稱/編號" value="${name}" class="col-span-4 p-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" oninput="calculate()">
+          <input type="number" placeholder="長 L" value="${l}" class="col-span-2 p-2.5 bg-white border border-slate-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 focus:outline-none" oninput="calculate()">
+          <input type="number" placeholder="闊 W" value="${w}" class="col-span-2 p-2.5 bg-white border border-slate-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 focus:outline-none" oninput="calculate()">
+          <input type="number" placeholder="高 H" value="${h}" class="col-span-2 p-2.5 bg-white border border-slate-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 focus:outline-none" oninput="calculate()">
+          <input type="number" placeholder="數量" value="${qty}" min="1" class="col-span-1 p-2.5 bg-white border border-slate-300 rounded-lg text-sm text-center focus:ring-2 focus:ring-blue-500 focus:outline-none" oninput="calculate()">
+          <button onclick="removeSkuRow('${id}')" class="col-span-1 text-slate-400 hover:text-red-500 text-lg font-bold text-center">×</button>
+        </div>
+      `;
+      document.getElementById('skuContainer').insertAdjacentHTML('beforeend', html);
+      calculate();
+    }
+
+    function removeSkuRow(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+      calculate();
+    }
+
+    function handleLogoUpload(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          logoDataUrl = e.target.result;
+          const preview = document.getElementById('logoPreview');
+          preview.src = logoDataUrl;
+          preview.classList.remove('hidden');
+
+          document.getElementById('modalLogoContainer').innerHTML = `<img src="${logoDataUrl}" class="h-full object-contain">`;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function calculate() {
+      const boxL = parseFloat(document.getElementById('boxL').value) || 0;
+      const boxW = parseFloat(document.getElementById('boxW').value) || 0;
+      const boxH = parseFloat(document.getElementById('boxH').value) || 0;
+      const boxVol = boxL * boxW * boxH;
+
+      let totalProdVol = 0;
+      let hasValidSku = false;
+
+      const skuRows = document.getElementById('skuContainer').children;
+      for (let row of skuRows) {
+        const inputs = row.querySelectorAll('input');
+        const l = parseFloat(inputs[1].value) || 0;
+        const w = parseFloat(inputs[2].value) || 0;
+        const h = parseFloat(inputs[3].value) || 0;
+        const q = parseInt(inputs[4].value) || 1;
+
+        if (l > 0 && w > 0 && h > 0) {
+          totalProdVol += (l * w * h * q);
+          hasValidSku = true;
+        }
+      }
+
+      const resultBox = document.getElementById('resultBox');
+
+      if (boxVol <= 0 || !hasValidSku) {
+        resultBox.className = "p-6 rounded-xl bg-slate-100 text-slate-500 text-center font-medium";
+        resultBox.innerHTML = "請輸入外盒與至少一件產品的尺寸數據";
+        return;
+      }
+
+      const voidVol = Math.max(0, boxVol - totalProdVol);
+      const voidRatio = ((voidVol / boxVol) * 100).toFixed(1);
+      const limit = currentMode === 'secondary' ? 50 : 40;
+      const isPass = voidRatio <= limit;
+
+      if (isPass) {
+        resultBox.className = "p-6 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1";
+        resultBox.innerHTML = `
+          <div class="text-base font-bold text-emerald-600">✅ 檢測結果：符合 PPWR 規章要件 (${voidRatio}% ≤ ${limit}% 限值)</div>
+          <div class="text-xs text-emerald-800">外箱總體積：<b>${boxVol.toLocaleString()}</b> cm³ | 商品總體積：<b>${totalProdVol.toLocaleString()}</b> cm³ | 空隙率：<b>${voidRatio}%</b></div>
+        `;
+      } else {
+        resultBox.className = "p-6 rounded-xl bg-red-50 border border-red-200 text-red-900 space-y-1";
+        resultBox.innerHTML = `
+          <div class="text-base font-bold text-red-600">❌ 檢測結果：空隙率超標 (${voidRatio}% > ${limit}% 限值)</div>
+          <div class="text-xs text-red-800">外箱總體積：<b>${boxVol.toLocaleString()}</b> cm³ | 商品總體積：<b>${totalProdVol.toLocaleString()}</b> cm³ | 空隙率：<b>${voidRatio}%</b></div>
+        `;
+      }
+    }
+
+    function openModal() {
+      // 動態更新 Modal 資料
+      const company = document.getElementById('companyName').value || 'N/A';
+      const sku = document.getElementById('skuId').value || 'N/A';
+      const boxL = parseFloat(document.getElementById('boxL').value) || 0;
+      const boxW = parseFloat(document.getElementById('boxW').value) || 0;
+      const boxH = parseFloat(document.getElementById('boxH').value) || 0;
+      const boxVol = boxL * boxW * boxH;
+
+      document.getElementById('mCompany').innerText = company;
+      document.getElementById('mSku').innerText = sku;
+      document.getElementById('mDate').innerText = new Date().toISOString().slice(0, 10);
+      document.getElementById('mCategory').innerText = currentMode === 'secondary' ? 'Secondary / Transport Packaging' : 'Primary / Sales Packaging';
+      document.getElementById('modalSubTitle').innerText = currentMode === 'secondary' ? 'PPWR Assessment Report - Article 24 (Transport Packaging)' : 'PPWR Assessment Report - Article 10 (Packaging Minimisation)';
+
+      // 填充表格 1
+      let specHtml = `
+        <tr>
+          <td class="p-2 border-r border-slate-200 font-bold">Outer Transport Box</td>
+          <td class="p-2 border-r border-slate-200 text-center">${boxL} × ${boxW} × ${boxH}</td>
+          <td class="p-2 border-r border-slate-200 text-center">1</td>
+          <td class="p-2 text-right">${boxVol.toLocaleString()}</td>
+        </tr>
+      `;
+
+      let totalProdVol = 0;
+      const skuRows = document.getElementById('skuContainer').children;
+      for (let row of skuRows) {
+        const inputs = row.querySelectorAll('input');
+        const name = inputs[0].value || 'Item';
+        const l = parseFloat(inputs[1].value) || 0;
+        const w = parseFloat(inputs[2].value) || 0;
+        const h = parseFloat(inputs[3].value) || 0;
+        const q = parseInt(inputs[4].value) || 1;
+        const itemVol = l * w * h * q;
+        totalProdVol += itemVol;
+
+        specHtml += `
+          <tr>
+            <td class="p-2 border-r border-slate-200">${name}</td>
+            <td class="p-2 border-r border-slate-200 text-center">${l} × ${w} × ${h}</td>
+            <td class="p-2 border-r border-slate-200 text-center">${q}</td>
+            <td class="p-2 text-right">${itemVol.toLocaleString()}</td>
+          </tr>
+        `;
+      }
+      document.getElementById('mSpecTable').innerHTML = specHtml;
+
+      // 填充表格 2
+      const voidVol = Math.max(0, boxVol - totalProdVol);
+      const voidRatio = boxVol > 0 ? ((voidVol / boxVol) * 100).toFixed(1) : 0;
+      const limit = currentMode === 'secondary' ? 50 : 40;
+      const isPass = voidRatio <= limit;
+
+      document.getElementById('mBoxVol').innerText = `${boxVol.toLocaleString()} cm³`;
+      document.getElementById('mProdVol').innerText = `${totalProdVol.toLocaleString()} cm³`;
+      document.getElementById('mVoidLabel').innerText = `Void Space Ratio (Max Limit ≤ ${limit}% - ${currentMode === 'secondary' ? 'Art. 24' : 'Art. 10'})`;
+      document.getElementById('mVoidRatio').innerText = `${voidRatio}%`;
+
+      const banner = document.getElementById('mStatusBanner');
+      if (isPass) {
+        banner.className = "bg-emerald-100 text-emerald-800 text-center font-bold py-3 rounded-lg text-xs sm:text-sm border border-emerald-200";
+        banner.innerText = `PASS: Complies with PPWR ${currentMode === 'secondary' ? 'Article 24' : 'Article 10'} (Void Space ≤ ${limit}%)`;
+      } else {
+        banner.className = "bg-red-100 text-red-800 text-center font-bold py-3 rounded-lg text-xs sm:text-sm border border-red-200";
+        banner.innerText = `FAIL: Exceeds PPWR ${currentMode === 'secondary' ? 'Article 24' : 'Article 10'} Threshold (${voidRatio}% > ${limit}%)`;
+      }
+
+      document.getElementById('reportModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('reportModal').classList.add('hidden');
+    }
+
+    function downloadPDF() {
+      const element = document.getElementById('pdf-content');
+      const company = document.getElementById('companyName').value || 'Company';
+      const sku = document.getElementById('skuId').value || 'SKU';
+
+      const opt = {
+        margin:       10,
+        filename:     `PPWR_Compliance_${company}_${sku}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      html2pdf().set(opt).from(element).save();
+    }
+
+    // 初始化動態商品列
+    addSkuRow('面膜', '3', '0.5', '7', 5);
+  </script>
+</body>
+</html>
