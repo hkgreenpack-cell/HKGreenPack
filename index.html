@@ -335,6 +335,17 @@
           return;
         }
 
+        // 檢查體積溢出
+        if (totalProdVol > boxVol) {
+          const overflowPercent = ((totalProdVol / boxVol) * 100).toFixed(1);
+          resultBox.className = "p-6 rounded-xl bg-red-50 border border-red-200 text-red-900 space-y-1";
+          resultBox.innerHTML = `
+            <div class="text-base font-bold text-red-600">❌ 尺寸數據異常：內部商品總體積超過外箱容量 (${overflowPercent}%)</div>
+            <div class="text-xs text-red-800">外箱總體積：<b>${boxVol.toLocaleString()}</b> cm³ | 商品總體積：<b>${totalProdVol.toLocaleString()}</b> cm³（商品無法裝入外箱，請檢查尺寸）</div>
+          `;
+          return;
+        }
+
         const voidVol = Math.max(0, boxVol - totalProdVol);
         const voidRatio = ((voidVol / boxVol) * 100).toFixed(1);
         const limit = 50;
@@ -354,6 +365,7 @@
           `;
         }
       } else {
+        // 一級包裝邏輯
         const boxL = parseFloat(document.getElementById('priBoxL').value) || 0;
         const boxW = parseFloat(document.getElementById('priBoxW').value) || 0;
         const boxH = parseFloat(document.getElementById('priBoxH').value) || 0;
@@ -371,14 +383,23 @@
           return;
         }
 
-        const voidVol = Math.max(0, boxVol - prodVol);
-        const voidRatio = ((voidVol / boxVol) * 100).toFixed(1);
-
-        resultBox.className = "p-6 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-900 space-y-1";
-        resultBox.innerHTML = `
-          <div class="text-base font-bold text-indigo-600">ℹ️ 一級包裝極小化評估 (Article 10)</div>
-          <div class="text-xs text-indigo-800">銷售盒體積：<b>${boxVol.toLocaleString()}</b> cm³ | 裸裝產品體積：<b>${prodVol.toLocaleString()}</b> cm³ | 空隙/防護占比：<b>${voidRatio}%</b></div>
-        `;
+        // 檢查體積溢出 (內裝物大於外盒)
+        if (prodVol > boxVol) {
+          const overflowPercent = ((prodVol / boxVol) * 100).toFixed(1);
+          resultBox.className = "p-6 rounded-xl bg-red-50 border border-red-200 text-red-900 space-y-1";
+          resultBox.innerHTML = `
+            <div class="text-base font-bold text-red-600">❌ 尺寸數據異常：內裝物總體積超過外盒容量 (${overflowPercent}%)</div>
+            <div class="text-xs text-red-800">銷售盒體積：<b>${boxVol.toLocaleString()}</b> cm³ | 裸裝產品體積：<b>${prodVol.toLocaleString()}</b> cm³（產品無法裝入銷售盒，請檢查尺寸）</div>
+          `;
+        } else {
+          const voidVol = boxVol - prodVol;
+          const voidRatio = ((voidVol / boxVol) * 100).toFixed(1);
+          resultBox.className = "p-6 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 space-y-1";
+          resultBox.innerHTML = `
+            <div class="text-base font-bold text-emerald-600">✅ 一級包裝極小化評估：尺寸合規 (Article 10)</div>
+            <div class="text-xs text-emerald-800">銷售盒體積：<b>${boxVol.toLocaleString()}</b> cm³ | 裸裝產品體積：<b>${prodVol.toLocaleString()}</b> cm³ | 空隙/防護占比：<b>${voidRatio}%</b></div>
+          `;
+        }
       }
     }
 
@@ -478,9 +499,6 @@
 
       document.getElementById('mSpecTable').innerHTML = specHtml;
 
-      const voidVol = Math.max(0, boxVol - totalProdVol);
-      const voidRatio = boxVol > 0 ? ((voidVol / boxVol) * 100).toFixed(1) : 0;
-
       document.getElementById('mBoxVol').innerText = `${boxVol.toLocaleString()} cm³`;
       document.getElementById('mProdVol').innerText = `${totalProdVol.toLocaleString()} cm³`;
       
@@ -488,23 +506,43 @@
 
       if (currentMode === 'secondary') {
         const limit = 50;
-        const isPass = voidRatio <= limit;
-        document.getElementById('mVoidLabel').innerText = `Void Space Ratio (Max Limit ≤ 50% - Art. 24)`;
-        document.getElementById('mVoidRatio').innerText = `${voidRatio}%`;
-
-        if (isPass) {
-          banner.className = "bg-emerald-100 text-emerald-800 text-center font-bold py-3 rounded-lg text-xs sm:text-sm border border-emerald-200";
-          banner.innerText = `PASS: Complies with PPWR Article 24 (Ratio ≤ 50%)`;
-        } else {
+        if (totalProdVol > boxVol) {
+          const overflowPercent = ((totalProdVol / boxVol) * 100).toFixed(1);
+          document.getElementById('mVoidLabel').innerText = `Void Space Ratio (Volume Overflow)`;
+          document.getElementById('mVoidRatio').innerText = `ERROR`;
           banner.className = "bg-red-100 text-red-800 text-center font-bold py-3 rounded-lg text-xs sm:text-sm border border-red-200";
-          banner.innerText = `FAIL: Exceeds PPWR Article 24 Threshold (${voidRatio}% > 50%)`;
+          banner.innerText = `FAIL: Inner Items Volume Exceeds Outer Box Capacity (${overflowPercent}%)`;
+        } else {
+          const voidVol = Math.max(0, boxVol - totalProdVol);
+          const voidRatio = boxVol > 0 ? ((voidVol / boxVol) * 100).toFixed(1) : 0;
+          const isPass = voidRatio <= limit;
+          document.getElementById('mVoidLabel').innerText = `Void Space Ratio (Max Limit ≤ 50% - Art. 24)`;
+          document.getElementById('mVoidRatio').innerText = `${voidRatio}%`;
+
+          if (isPass) {
+            banner.className = "bg-emerald-100 text-emerald-800 text-center font-bold py-3 rounded-lg text-xs sm:text-sm border border-emerald-200";
+            banner.innerText = `PASS: Complies with PPWR Article 24 (Ratio ≤ 50%)`;
+          } else {
+            banner.className = "bg-red-100 text-red-800 text-center font-bold py-3 rounded-lg text-xs sm:text-sm border border-red-200";
+            banner.innerText = `FAIL: Exceeds PPWR Article 24 Threshold (${voidRatio}% > 50%)`;
+          }
         }
       } else {
-        document.getElementById('mVoidLabel').innerText = `Void Space / Packaging Ratio (Art. 10 Assessment)`;
-        document.getElementById('mVoidRatio').innerText = `${voidRatio}%`;
+        if (totalProdVol > boxVol) {
+          const overflowPercent = ((totalProdVol / boxVol) * 100).toFixed(1);
+          document.getElementById('mVoidLabel').innerText = `Void Space / Packaging Ratio (Overflow Error)`;
+          document.getElementById('mVoidRatio').innerText = `ERROR`;
+          banner.className = "bg-red-100 text-red-800 text-center font-bold py-3 rounded-lg text-xs sm:text-sm border border-red-200";
+          banner.innerText = `FAIL: Product Volume Exceeds Sales Box Capacity (${overflowPercent}%)`;
+        } else {
+          const voidVol = Math.max(0, boxVol - totalProdVol);
+          const voidRatio = boxVol > 0 ? ((voidVol / boxVol) * 100).toFixed(1) : 0;
+          document.getElementById('mVoidLabel').innerText = `Void Space / Packaging Ratio (Art. 10 Assessment)`;
+          document.getElementById('mVoidRatio').innerText = `${voidRatio}%`;
 
-        banner.className = "bg-indigo-100 text-indigo-800 text-center font-bold py-3 rounded-lg text-xs sm:text-sm border border-indigo-200";
-        banner.innerText = `COMPLETED: Assessed under PPWR Article 10 (Minimisation Requirements)`;
+          banner.className = "bg-emerald-100 text-emerald-800 text-center font-bold py-3 rounded-lg text-xs sm:text-sm border border-emerald-200";
+          banner.innerText = `PASS: Complies with PPWR Article 10 (Packaging Minimised)`;
+        }
       }
 
       document.getElementById('reportModal').classList.remove('hidden');
@@ -530,7 +568,6 @@
       html2pdf().set(opt).from(element).save();
     }
 
-    // 初始化加入一列空白的商品輸入列
     addSecSkuRow('', '', '', '', '');
   </script>
 </body>
