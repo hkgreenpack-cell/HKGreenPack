@@ -1,11 +1,168 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>PPWR Calculator</title>
-  </head>
-  <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-    <h1>PPWR 包裝合規與節稅診斷工具</h1>
-    <p>網站建置中，敬請期待！</p>
-  </body>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PPWR 歐盟包裝合規與節稅估算器</title>
+  <!-- 引入 Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4 md:p-8">
+  <div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <header class="mb-8 text-center">
+      <h1 class="text-3xl md:text-4xl font-bold text-emerald-400 mb-2">PPWR 歐盟包裝合規與節稅估算器</h1>
+      <p class="text-slate-400">快速評估包裝是否符合 2030 歐盟法規要求，並預估 EPR 規費優化空間</p>
+    </header>
+
+    <div class="grid md:grid-cols-2 gap-8">
+      <!-- 控制台面板 -->
+      <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl">
+        <h2 class="text-xl font-semibold mb-4 text-emerald-300 border-b border-slate-700 pb-2">1. 包裝數據輸入</h2>
+        
+        <!-- 空隙率 -->
+        <div class="mb-5">
+          <label class="block text-sm font-medium mb-2">包裝空隙率 (Void Ratio): <span id="voidVal" class="text-emerald-400 font-bold">35</span>%</label>
+          <input type="range" id="voidRatio" min="10" max="70" value="35" class="w-full accent-emerald-500">
+          <p class="text-xs text-slate-400 mt-1">PPWR 2030 標準：強制空隙率需 $\le$ 40%</p>
+        </div>
+
+        <!-- 再生塑料比例 (PCR %) -->
+        <div class="mb-5">
+          <label class="block text-sm font-medium mb-2">再生塑料比例 (PCR %): <span id="pcrVal" class="text-emerald-400 font-bold">20</span>%</label>
+          <input type="range" id="pcrRatio" min="0" max="100" value="20" class="w-full accent-emerald-500">
+          <p class="text-xs text-slate-400 mt-1">PPWR 2030 標準：一般塑料包裝強制 PCR $\ge$ 35%</p>
+        </div>
+
+        <!-- 包裝材質設計 (DfR) -->
+        <div class="mb-5">
+          <label class="block text-sm font-medium mb-2">包裝材質設計 (DfR)</label>
+          <select id="materialType" class="w-full bg-slate-700 border border-slate-600 rounded-lg p-2.5 text-white">
+            <option value="single">單一材質 (Single Material) - 高可回收</option>
+            <option value="composite">複合材質 (Multi-layer/Composite) - 難回收</option>
+          </select>
+        </div>
+
+        <!-- 年出貨量 -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium mb-2">預估出口歐盟年出貨量 (萬件)</label>
+          <input type="number" id="annualUnits" value="50" class="w-full bg-slate-700 border border-slate-600 rounded-lg p-2.5 text-white">
+        </div>
+      </div>
+
+      <!-- 診斷結果儀表板 -->
+      <div class="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-xl flex flex-col justify-between">
+        <div>
+          <h2 class="text-xl font-semibold mb-4 text-emerald-300 border-b border-slate-700 pb-2">2. 診斷與優化結果</h2>
+          
+          <!-- 合規狀態卡片 -->
+          <div id="statusCard" class="p-4 rounded-lg mb-6 bg-emerald-950/80 border border-emerald-500/50">
+            <div class="text-sm font-medium text-slate-300">2030 歐盟合規總評</div>
+            <div id="statusText" class="text-2xl font-bold text-emerald-400 mt-1">✅ 總體符合 PPWR 規範</div>
+            <ul id="statusList" class="mt-2 text-xs space-y-1 text-slate-300"></ul>
+          </div>
+
+          <!-- DfR 等級與 EPR 規費 -->
+          <div class="space-y-4">
+            <div class="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
+              <span class="text-sm">回收設計評級 (DfR Grade):</span>
+              <span id="dfrGrade" class="text-xl font-bold text-emerald-400">Grade A</span>
+            </div>
+            
+            <div class="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg">
+              <span class="text-sm">預估年度 EPR 規費支出:</span>
+              <span id="eprCost" class="text-xl font-bold text-amber-400">€15,000</span>
+            </div>
+
+            <div class="flex justify-between items-center bg-slate-700/50 p-3 rounded-lg border border-emerald-500/30">
+              <span class="text-sm">若改質升級，預估可節省 (EPR 節稅):</span>
+              <span id="eprSavings" class="text-xl font-bold text-emerald-400">€0 / 年</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 pt-4 border-t border-slate-700 text-xs text-slate-400 text-center">
+          * 註：EPR 節稅基於歐盟 Eco-modulation 綠色費率調節標準試算
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 計算邏輯腳本 -->
+  <script>
+    const voidRatio = document.getElementById('voidRatio');
+    const pcrRatio = document.getElementById('pcrRatio');
+    const materialType = document.getElementById('materialType');
+    const annualUnits = document.getElementById('annualUnits');
+
+    function calculate() {
+      const v = parseInt(voidRatio.value);
+      const p = parseInt(pcrRatio.value);
+      const m = materialType.value;
+      const units = parseFloat(annualUnits.value) || 0;
+
+      document.getElementById('voidVal').innerText = v;
+      document.getElementById('pcrVal').innerText = p;
+
+      let issues = [];
+      let isCompliant = true;
+
+      if (v > 40) {
+        issues.push('❌ 包裝空隙率超過 40% (2030 年起將面臨禁售風險)');
+        isCompliant = false;
+      } else {
+        issues.push('✅ 空隙率符合 40% 以下標準');
+      }
+
+      if (p < 35) {
+        issues.push('⚠️ PCR 再生塑料未達 35% 目標');
+        isCompliant = false;
+      } else {
+        issues.push('✅ PCR 含量達到 2030 門檻');
+      }
+
+      // DfR 評級與 EPR 計算
+      let grade = 'Grade A';
+      let baseRate = 0.3; // €/kg 基礎費率 (假設單個包裝 100g)
+      let savingsRate = 0;
+
+      if (m === 'composite') {
+        grade = 'Grade C / Non-recyclable';
+        baseRate = 0.6; // 懲罰費率
+        savingsRate = 0.3; // 若改為單一材質每件可省 0.3 歐元
+        issues.push('⚠️ 複合材質需額外支付沉重 EPR 懲罰規費');
+      } else {
+        if (p < 35) grade = 'Grade B';
+        else grade = 'Grade A';
+      }
+
+      // 計算費用 (以單件 100g = 0.1kg 估算)
+      const weightPerUnitKg = 0.1;
+      const totalWeightKg = units * 10000 * weightPerUnitKg;
+      const totalCost = totalWeightKg * baseRate;
+      const totalSavings = totalWeightKg * savingsRate;
+
+      // 渲染結果
+      const statusCard = document.getElementById('statusCard');
+      const statusText = document.getElementById('statusText');
+      if (isCompliant && m === 'single') {
+        statusCard.className = 'p-4 rounded-lg mb-6 bg-emerald-950/80 border border-emerald-500/50';
+        statusText.innerText = '✅ 總體符合 PPWR 規範';
+        statusText.className = 'text-2xl font-bold text-emerald-400 mt-1';
+      } else {
+        statusCard.className = 'p-4 rounded-lg mb-6 bg-amber-950/80 border border-amber-500/50';
+        statusText.innerText = '⚠️ 存在未合規風險 / 可優化';
+        statusText.className = 'text-2xl font-bold text-amber-400 mt-1';
+      }
+
+      document.getElementById('statusList').innerHTML = issues.map(i => `<li>${i}</li>`).join('');
+      document.getElementById('dfrGrade').innerText = grade;
+      document.getElementById('eprCost').innerText = '€' + totalCost.toLocaleString('en-US');
+      document.getElementById('eprSavings').innerText = '€' + totalSavings.toLocaleString('en-US') + ' / 年';
+    }
+
+    [voidRatio, pcrRatio, materialType, annualUnits].forEach(el => el.addEventListener('input', calculate));
+    calculate();
+  </script>
+</body>
 </html>
