@@ -92,7 +92,7 @@
     </button>
   </div>
 
-  <!-- Pop-up Window 彈窗區域 (獨立於主頁面外) -->
+  <!-- Pop-up Window 彈窗區域 (獨立位於最外層) -->
   <div id="reportModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto">
     <div class="w-full max-w-3xl bg-white rounded-2xl shadow-2xl my-8 overflow-hidden border border-slate-200">
       
@@ -114,14 +114,23 @@
       <!-- PDF 聲明書內容 -->
       <div id="pdf-content" class="p-8 bg-white text-slate-800 space-y-6">
         
-        <!-- Header -->
-        <div class="flex justify-between items-start pb-4 border-b-2 border-blue-600">
+        <!-- Header 商標區域 (修復商標截斷問題) -->
+        <div class="flex justify-between items-start pb-4 border-b-2 border-blue-600 gap-4">
           <div>
             <h1 class="text-xl sm:text-2xl font-extrabold text-slate-900">EU PPWR Packaging Compliance Declaration</h1>
             <p id="modalSubTitle" class="text-xs font-medium text-slate-500 mt-1">PPWR Assessment Report - Article 24 (Transport Packaging)</p>
           </div>
-          <div id="modalLogoContainer" class="bg-emerald-600 text-white p-2 rounded-lg w-12 h-12 flex items-center justify-center text-center text-xs font-bold leading-tight">
-            Lushwood
+          
+          <!-- 商標容器 -->
+          <div id="modalLogoContainer" class="h-16 w-16 min-w-[64px] flex items-center justify-end flex-shrink-0">
+            <!-- 預設 Lushwood 標誌 SVG -->
+            <svg viewBox="0 0 200 210" class="h-full w-full rounded-xl bg-[#40b04b] p-1.5 shadow-sm">
+              <path d="M 100 20 L 165 52 L 100 85 L 35 52 Z" fill="none" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M 35 52 L 35 120 L 100 152 L 100 85" fill="none" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M 180 62 C 180 100 142 135 130 135 C 130 100 152 75 180 62 Z" fill="white"/>
+              <path d="M 132 133 C 145 110 162 85 175 70" fill="none" stroke="#40b04b" stroke-width="6" stroke-linecap="round"/>
+              <text x="100" y="188" text-anchor="middle" fill="white" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="32" letter-spacing="-0.5">Lushwood</text>
+            </svg>
           </div>
         </div>
 
@@ -168,11 +177,11 @@
             <tbody class="divide-y divide-slate-200">
               <tr>
                 <td class="p-2 border-r border-slate-200">Outer Box Total Volume</td>
-                <td id="mBoxVol" class="p-2 text-right">65.625 cm³</td>
+                <td id="mBoxVol" class="p-2 text-right">0.0 cm³</td>
               </tr>
               <tr>
                 <td class="p-2 border-r border-slate-200">Product Volume Total</td>
-                <td id="mProdVol" class="p-2 text-right">52.5 cm³</td>
+                <td id="mProdVol" class="p-2 text-right">0.0 cm³</td>
               </tr>
               <tr>
                 <td class="p-2 border-r border-slate-200">Cushioning Material Volume (Counts as Void)</td>
@@ -180,7 +189,7 @@
               </tr>
               <tr>
                 <td class="p-2 border-r border-slate-200 font-bold" id="mVoidLabel">Void Space Ratio (Max Limit ≤ 50% - Art. 24)</td>
-                <td id="mVoidRatio" class="p-2 text-right font-bold">20.0%</td>
+                <td id="mVoidRatio" class="p-2 text-right font-bold">0.0%</td>
               </tr>
             </tbody>
           </table>
@@ -188,7 +197,7 @@
 
         <!-- 結果 Banner -->
         <div id="mStatusBanner" class="bg-emerald-100 text-emerald-800 text-center font-bold py-3 rounded-lg text-xs sm:text-sm border border-emerald-200">
-          PASS: Complies with PPWR Article 24 (Void Space ≤ 50%)
+          PASS: Complies with PPWR Article 24
         </div>
 
         <!-- Footer -->
@@ -203,6 +212,16 @@
     let currentMode = 'secondary';
     let skuCount = 0;
     let logoDataUrl = '';
+
+    const defaultLogoSvg = `
+      <svg viewBox="0 0 200 210" class="h-full w-full rounded-xl bg-[#40b04b] p-1.5 shadow-sm">
+        <path d="M 100 20 L 165 52 L 100 85 L 35 52 Z" fill="none" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 35 52 L 35 120 L 100 152 L 100 85" fill="none" stroke="white" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 180 62 C 180 100 142 135 130 135 C 130 100 152 75 180 62 Z" fill="white"/>
+        <path d="M 132 133 C 145 110 162 85 175 70" fill="none" stroke="#40b04b" stroke-width="6" stroke-linecap="round"/>
+        <text x="100" y="188" text-anchor="middle" fill="white" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="32" letter-spacing="-0.5">Lushwood</text>
+      </svg>
+    `;
 
     function switchTab(mode) {
       currentMode = mode;
@@ -255,7 +274,9 @@
           preview.src = logoDataUrl;
           preview.classList.remove('hidden');
 
-          document.getElementById('modalLogoContainer').innerHTML = `<img src="${logoDataUrl}" class="h-full object-contain">`;
+          document.getElementById('modalLogoContainer').innerHTML = `
+            <img src="${logoDataUrl}" class="h-16 w-auto max-w-[140px] object-contain rounded-lg">
+          `;
         };
         reader.readAsDataURL(file);
       }
@@ -313,7 +334,6 @@
     }
 
     function openModal() {
-      // 動態更新 Modal 資料
       const company = document.getElementById('companyName').value || 'N/A';
       const sku = document.getElementById('skuId').value || 'N/A';
       const boxL = parseFloat(document.getElementById('boxL').value) || 0;
@@ -326,6 +346,10 @@
       document.getElementById('mDate').innerText = new Date().toISOString().slice(0, 10);
       document.getElementById('mCategory').innerText = currentMode === 'secondary' ? 'Secondary / Transport Packaging' : 'Primary / Sales Packaging';
       document.getElementById('modalSubTitle').innerText = currentMode === 'secondary' ? 'PPWR Assessment Report - Article 24 (Transport Packaging)' : 'PPWR Assessment Report - Article 10 (Packaging Minimisation)';
+
+      if (!logoDataUrl) {
+        document.getElementById('modalLogoContainer').innerHTML = defaultLogoSvg;
+      }
 
       // 填充表格 1
       let specHtml = `
